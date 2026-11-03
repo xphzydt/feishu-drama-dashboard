@@ -35,6 +35,13 @@ function episodeRanges(records,fields){
   const groups=new Map();for(const record of records){const project=cellText(record.fields[fields.project.id])||'未命名项目';const episode=number(record.fields[fields.episode.id]);if(!groups.has(project))groups.set(project,new Set());groups.get(project).add(episode)}
   return [...groups].map(([project,episodes])=>{const sorted=[...episodes].sort((a,b)=>a-b),parts=[];for(let i=0;i<sorted.length;i++){const start=sorted[i];let end=start;while(sorted[i+1]===end+1)end=sorted[++i];parts.push(start===end?String(start):start+'—'+end)}return project+'｜第'+parts.join('、')+'集'}).join('；')||'尚未分配剧集';
 }
+function episodeOrder(records,fields){
+  const episodes=records.map(record=>cellText(record.fields[fields.episode.id]).trim()).filter(Boolean).map(Number).filter(value=>Number.isInteger(value)&&value>0);
+  return episodes.length?{first:Math.min(...episodes),last:Math.max(...episodes)}:{first:null,last:null};
+}
+export function compareEpisodeOrder(a,b){
+  return (a.episodeOrder.first??Infinity)-(b.episodeOrder.first??Infinity)||(a.episodeOrder.last??Infinity)-(b.episodeOrder.last??Infinity)||a.id.localeCompare(b.id);
+}
 function ledgerDate(value){
   const text=cellText(value).trim();if(!text)return '未填写日期';
   const timestamp=Number(text);if(!Number.isFinite(timestamp))return '未填写日期';
@@ -69,7 +76,8 @@ export async function readProduction(connection){
   }
   const rows=await Promise.all(personal.map(async({meta,owner})=>{
     const records=await readRecords(table,meta.id);
-    return {id:meta.id,name:meta.name,owner:owner.name,range:episodeRanges(records,fields),...totals(records,fields),credits:credits.get(owner.name)||0,destination:{tableId:table.id,viewId:meta.id}};
+    return {id:meta.id,name:meta.name,owner:owner.name,range:episodeRanges(records,fields),episodeOrder:episodeOrder(records,fields),...totals(records,fields),credits:credits.get(owner.name)||0,destination:{tableId:table.id,viewId:meta.id}};
   }));
+  rows.sort(compareEpisodeOrder);
   return {rows,team:totals(all,fields),credits:aggregateCredits(creditRecords,creditFields,rows)};
 }
