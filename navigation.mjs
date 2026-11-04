@@ -27,7 +27,7 @@ export async function connectProduction(base){
 }
 export async function readRecords(table,viewId){
   const records=[];let pageToken;
-  do{const page=await table.getRecords({pageSize:500,...(viewId?{viewId}:{}),...(pageToken?{pageToken}:{})});records.push(...page.records);if(page.hasMore&&(page.pageToken==null||page.pageToken===pageToken))throw Error('源表分页不完整');pageToken=page.hasMore?page.pageToken:undefined}while(pageToken!=null);
+  do{const page=await table.getRecords({pageSize:200,...(viewId?{viewId}:{}),...(pageToken?{pageToken}:{})});records.push(...page.records);if(page.hasMore&&(page.pageToken==null||page.pageToken===pageToken))throw Error('源表分页不完整');pageToken=page.hasMore?page.pageToken:undefined}while(pageToken!=null);
   return records;
 }
 function totals(records,fields){return records.reduce((sum,record)=>{const done=number(record.fields[fields.done.id]);if(done!==0&&done!==1)throw Error('完成集数必须为0或1');sum.total++;sum.done+=done;sum.seconds+=number(record.fields[fields.seconds.id]);return sum},{total:0,done:0,seconds:0})}
