@@ -38,7 +38,7 @@ function episodeRanges(records,fields){
 export function aggregateVideo(records,fields){
  const people=new Map(fields.maker.property.options.map(o=>[o.id,{id:o.id,name:o.name,total:0,done:0,seconds:0}])),days=new Map();
  for(const record of records){const cell=record.fields[fields.maker.id],option=fields.maker.property.options.find(o=>o.id===cell?.id||o.name===cellText(cell)),id=option?.id||'unassigned';if(!people.has(id))people.set(id,{id,name:'未分配制作人',total:0,done:0,seconds:0});const person=people.get(id),done=number(record.fields[fields.done.id]),seconds=number(record.fields[fields.seconds.id]);if(done!==0&&done!==1)throw Error('完成集数必须为0或1');person.total++;if(!done)continue;person.done++;person.seconds+=seconds;const date=ledgerDate(record.fields[fields.date.id]);if(!days.has(date))days.set(date,{date,total:0,done:0,byPerson:{}});const day=days.get(date);day.total+=seconds;day.done++;if(!day.byPerson[id])day.byPerson[id]={seconds:0,done:0};day.byPerson[id].seconds+=seconds;day.byPerson[id].done++;
- }return {people:[...people.values()],daily:[...days.values()].sort((a,b)=>b.date.localeCompare(a.date))};
+ }return {people:[...people.values()],daily:[...days.values()].sort((a,b)=>a.date==='未填写日期'?b.date==='未填写日期'?0:1:b.date==='未填写日期'?-1:a.date.localeCompare(b.date))};
 }
 function episodeOrder(records,fields){
   const episodes=records.map(record=>cellText(record.fields[fields.episode.id]).trim()).filter(Boolean).map(Number).filter(value=>Number.isInteger(value)&&value>0);
