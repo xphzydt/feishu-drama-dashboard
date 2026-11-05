@@ -1,9 +1,9 @@
-import {cellText,readRecords} from './navigation.mjs';
+import {cellText,readRecords,findSourceTable} from './navigation.mjs';
 export const MAX_EPISODES=5000;
 const integer=(value,label)=>{const n=Number(value);if(!Number.isSafeInteger(n)||n<1||n>MAX_EPISODES)throw Error(label+'须为1—'+MAX_EPISODES+'的整数');return n};
 export function splitTitle(value){const text=cellText(value).trim();const m=text.match(/^(.*?)第\s*0*(\d+)\s*集$/u);if(m)return {prefix:m[1].replace(/[\s·・:：—-]+$/gu,'').trim(),episode:Number(m[2])};if(/^\d+$/u.test(text))return {prefix:'',episode:Number(text)};return null}
-export function batchSchema(fields){const result={};for(const [key,name,type] of [['title','剧集',1],['episode','集号',2],['maker','制作人',3],['status','制作状态',3]]){const field=fields.find(f=>f.name===name);if(!field||field.type!==type)throw Error('02 剧集制作的“'+name+'”字段类型不符合批量填写要求');result[key]=field}return result}
-export async function connectBatch(base){const table=await base.getTableByName('02 剧集制作');const allFields=await table.getFieldMetaList();return {table,fields:batchSchema(allFields),allFields}}
+export function batchSchema(fields){const result={};for(const [key,name,type] of [['title','剧集',1],['episode','集号',2],['maker','制作人',3],['status','制作状态',3]]){const field=fields.find(f=>f.name===name);if(!field||field.type!==type)throw Error('剧集制作表的“'+name+'”字段类型不符合批量填写要求');result[key]=field}return result}
+export async function connectBatch(base){const source=await findSourceTable(base,['剧集','集号','制作人','制作状态']);return {table:source.table,fields:batchSchema(source.fields),allFields:source.fields}}
 export async function readBatchContext(base){const connection=await connectBatch(base);const records=await readRecords(connection.table);const prefixes=[...new Set(records.map(r=>splitTitle(r.fields[connection.fields.title.id])?.prefix).filter(Boolean))];let orderedRecords=records;if(connection.table.getViewMetaList){const views=await connection.table.getViewMetaList();const team=views.find(v=>v.name==='团队剧集总览'&&[1,'grid'].includes(v.type));if(team)orderedRecords=await readRecords(connection.table,team.id)}return {...connection,records,prefixes,orderedRecords}}
 export function validateInput(input,fields){
   const total=integer(input.total,'总集数'),prefix=String(input.prefix||'').trim();if(prefix.length>100)throw Error('剧名前缀请控制在100字以内');if(!['create','assign'].includes(input.mode))throw Error('请选择操作方式');

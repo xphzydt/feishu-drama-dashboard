@@ -20,10 +20,13 @@ export function personalOwner(filter,makerField){
   return makerField.property.options.find(option=>option.id===selected||option.name===selected)??null;
 }
 function schema(fields,roles){const result={};for(const [role,name]of Object.entries(roles)){const field=fields.find(item=>item.name===name);if(!field)throw Error('源表缺少字段：'+name);result[role]=field}return result}
+export async function findSourceTable(base,required){
+ const metas=await base.getTableMetaList(),candidates=await Promise.all(metas.map(async meta=>{const table=await base.getTableById(meta.id);return {table,fields:await table.getFieldMetaList()}}));
+ const matches=candidates.filter(item=>required.every(name=>item.fields.some(f=>f.name===name)));if(matches.length!==1)throw Error(matches.length?'存在多张相同结构的数据表，请确认统计来源':'未找到包含'+required.join('、')+'的数据表');return matches[0];
+}
 export async function connectProduction(base){
-  const [table,ledger]=await Promise.all([base.getTableByName('02 剧集制作'),base.getTableByName('04 积分流水')]);
-  const [fields,creditFields]=await Promise.all([table.getFieldMetaList(),ledger.getFieldMetaList()]);
-  return {table,ledger,fields:schema(fields,{maker:'制作人',episode:'集号',done:'完成集数',seconds:'成片总秒数',date:'完成日期'}),creditFields:schema(creditFields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
+ const [episodes,credits]=await Promise.all([findSourceTable(base,['制作人','集号','完成集数','成片总秒数','完成日期']),findSourceTable(base,['制作人','消耗积分','任务创建时间'])]);
+ return {table:episodes.table,ledger:credits.table,fields:schema(episodes.fields,{maker:'制作人',episode:'集号',done:'完成集数',seconds:'成片总秒数',date:'完成日期'}),creditFields:schema(credits.fields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
 }
 export async function readRecords(table,viewId){
   const records=[];let pageToken;
