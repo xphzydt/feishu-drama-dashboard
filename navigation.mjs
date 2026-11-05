@@ -23,7 +23,7 @@ function schema(fields,roles){const result={};for(const [role,name]of Object.ent
 export async function connectProduction(base){
   const [table,ledger]=await Promise.all([base.getTableByName('02 剧集制作'),base.getTableByName('04 积分流水')]);
   const [fields,creditFields]=await Promise.all([table.getFieldMetaList(),ledger.getFieldMetaList()]);
-  return {table,ledger,fields:schema(fields,{maker:'制作人',project:'所属项目',episode:'集号',done:'完成集数',seconds:'成片总秒数'}),creditFields:schema(creditFields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
+  return {table,ledger,fields:schema(fields,{maker:'制作人',episode:'集号',done:'完成集数',seconds:'成片总秒数',date:'完成日期'}),creditFields:schema(creditFields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
 }
 export async function readRecords(table,viewId){
   const records=[];let pageToken;
@@ -32,8 +32,13 @@ export async function readRecords(table,viewId){
 }
 function totals(records,fields){return records.reduce((sum,record)=>{const done=number(record.fields[fields.done.id]);if(done!==0&&done!==1)throw Error('完成集数必须为0或1');sum.total++;sum.done+=done;sum.seconds+=number(record.fields[fields.seconds.id]);return sum},{total:0,done:0,seconds:0})}
 function episodeRanges(records,fields){
-  const groups=new Map();for(const record of records){const project=cellText(record.fields[fields.project.id])||'未命名项目';const episode=number(record.fields[fields.episode.id]);if(!groups.has(project))groups.set(project,new Set());groups.get(project).add(episode)}
-  return [...groups].map(([project,episodes])=>{const sorted=[...episodes].sort((a,b)=>a-b),parts=[];for(let i=0;i<sorted.length;i++){const start=sorted[i];let end=start;while(sorted[i+1]===end+1)end=sorted[++i];parts.push(start===end?String(start):start+'—'+end)}return project+'｜第'+parts.join('、')+'集'}).join('；')||'尚未分配剧集';
+ const sorted=[...new Set(records.map(r=>Number(cellText(r.fields[fields.episode.id]))).filter(n=>Number.isInteger(n)&&n>0))].sort((a,b)=>a-b),parts=[];
+ for(let i=0;i<sorted.length;i++){const first=sorted[i];let last=first;while(sorted[i+1]===last+1)last=sorted[++i];parts.push(first===last?String(first):first+'—'+last)}return parts.length?'第'+parts.join('、')+'集':'尚未分配剧集';
+}
+export function aggregateVideo(records,fields){
+ const people=new Map(fields.maker.property.options.map(o=>[o.id,{id:o.id,name:o.name,total:0,done:0,seconds:0}])),days=new Map();
+ for(const record of records){const cell=record.fields[fields.maker.id],option=fields.maker.property.options.find(o=>o.id===cell?.id||o.name===cellText(cell)),id=option?.id||'unassigned';if(!people.has(id))people.set(id,{id,name:'未分配制作人',total:0,done:0,seconds:0});const person=people.get(id),done=number(record.fields[fields.done.id]),seconds=number(record.fields[fields.seconds.id]);if(done!==0&&done!==1)throw Error('完成集数必须为0或1');person.total++;if(!done)continue;person.done++;person.seconds+=seconds;const date=ledgerDate(record.fields[fields.date.id]);if(!days.has(date))days.set(date,{date,total:0,done:0,byPerson:{}});const day=days.get(date);day.total+=seconds;day.done++;if(!day.byPerson[id])day.byPerson[id]={seconds:0,done:0};day.byPerson[id].seconds+=seconds;day.byPerson[id].done++;
+ }return {people:[...people.values()],daily:[...days.values()].sort((a,b)=>b.date.localeCompare(a.date))};
 }
 function episodeOrder(records,fields){
   const episodes=records.map(record=>cellText(record.fields[fields.episode.id]).trim()).filter(Boolean).map(Number).filter(value=>Number.isInteger(value)&&value>0);
@@ -79,5 +84,5 @@ export async function readProduction(connection){
     return {id:meta.id,name:meta.name,owner:owner.name,range:episodeRanges(records,fields),episodeOrder:episodeOrder(records,fields),...totals(records,fields),credits:credits.get(owner.name)||0,destination:{tableId:table.id,viewId:meta.id}};
   }));
   rows.sort(compareEpisodeOrder);
-  return {rows,team:totals(all,fields),credits:aggregateCredits(creditRecords,creditFields,rows)};
+  return {rows,team:totals(all,fields),credits:aggregateCredits(creditRecords,creditFields,rows),video:aggregateVideo(all,fields)};
 }

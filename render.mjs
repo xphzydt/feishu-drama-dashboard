@@ -6,7 +6,7 @@ export function renderRings(rows,{destinations=new Map(),onOpen,navigationError=
 export function renderOverview(data,options={},state={month:'all',owner:'all'}){
   const page=node('div','production-overview');
   const top=node('header','duration-banner');top.append(node('div','metric-title','团队已完成总时长'),node('div','metric-value',formatDuration(data.team.seconds)));page.append(top);
-  const ringCard=node('section','overview-card progress-card');ringCard.append(renderRings(data.rows,{...options,teamTotals:data.team}));page.append(ringCard);
+  const ringCard=node('section','overview-card progress-card');ringCard.append(renderRings(data.rows,{...options,teamTotals:data.team}));page.append(ringCard);if(data.video)page.append(renderVideo(data.video));
   const creditCard=node('section','overview-card credit-card');
   const heading=node('div','credit-heading');const headingText=node('div');headingText.append(node('h2','','积分消耗情况'),node('p','section-note','按积分流水实时汇总'));
   const total=node('div','credit-grand-total');total.append(node('span','','累计总消耗'),node('strong','',data.credits.total.toLocaleString()),node('span','','积分'));heading.append(headingText,total);creditCard.append(heading);
@@ -31,4 +31,14 @@ export function renderOverview(data,options={},state={month:'all',owner:'all'}){
     if(!days.length)daily.append(node('p','section-note','所选范围暂无积分流水'));
   }
   paintDaily();page.append(creditCard);return page;
+}
+
+export function renderVideo(video,owner){
+ const card=node('section','overview-card'),persons=video.people.filter(p=>!owner||p.id===owner);card.append(node('h2','',owner?'每日视频产出':'每人每日视频产出'),node('p','section-note','按完成日期统计已完成剧集，未填写日期的单独列出。'));
+ const wrap=node('div','daily-table-wrap'),table=node('table','daily-table'),head=node('thead'),tr=node('tr');tr.append(node('th','','完成日期'));for(const p of persons)tr.append(node('th','',p.name));if(!owner)tr.append(node('th','','团队合计'));head.append(tr);table.append(head);const body=node('tbody');let shown=0;
+ for(const day of video.daily){if(owner&&!day.byPerson[owner])continue;shown++;const row=node('tr');row.append(node('th','',day.date));for(const p of persons){const v=day.byPerson[p.id]||{done:0,seconds:0};row.append(node('td','',v.done+'集 · '+formatDuration(v.seconds)))}if(!owner)row.append(node('td','daily-total',day.done+'集 · '+formatDuration(day.total)));body.append(row)}table.append(body);wrap.append(table);card.append(wrap);if(!shown)card.append(node('p','section-note','暂无已完成的视频记录'));return card;
+}
+export function renderPersonal(data,owner){
+ const page=node('div','production-overview'),person=data.video.people.find(p=>p.id===owner);if(!person){page.append(node('p','error','未找到工作台绑定的制作人，请检查制作人选项'));return page}page.append(node('h2','',person.name+'｜视频产出与积分'));const cards=node('div','personal-metrics'),spent=data.credits.people.find(p=>p.owner===person.name)?.total||0;
+ for(const [title,value]of [['负责集数',person.total+'集'],['已完成集数',person.done+'集'],['累计视频产出',formatDuration(person.seconds)],['累计消耗积分',spent.toLocaleString()]]){const card=node('div','credit-person');card.append(node('div','credit-person-name',title),node('strong','',value));cards.append(card)}page.append(cards,renderVideo(data.video,owner));return page;
 }
