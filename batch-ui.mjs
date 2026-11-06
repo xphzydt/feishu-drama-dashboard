@@ -1,3 +1,4 @@
+import {lockModalScroll} from './modal-scroll.mjs?v=20261106-modal-scroll';
 import {readBatchContext,makeBatchPlan,applyBatchPlan,MAX_EPISODES} from './batch.mjs?v=20261106-batch';
 const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
 const button=(text,cls,handler)=>{const node=el('button',cls,text);node.type='button';node.onclick=handler;return node};
@@ -8,8 +9,8 @@ export async function openBatchGenerator({base,onChanged=()=>{}}){
   if(current?.isConnected){current.focus();return}
   const previous=document.activeElement,dialog=el('dialog','batch-dialog');current=dialog;dialog.setAttribute('aria-label','批量生成与分配剧集');
   const header=el('div','batch-header'),heading=el('div'),title=el('h2','','批量生成与分配剧集'),subtitle=el('p','batch-note','自动编号，并按集数范围填写制作人。');heading.append(title,subtitle);header.append(heading);
-  let writing=false;const close=()=>{if(writing)return;dialog.close();dialog.remove();current=null;previous?.focus?.({preventScroll:true})};const closeButton=button('关闭','batch-close',close);header.append(closeButton);dialog.append(header);
-  const body=el('div','batch-body');dialog.append(body);body.append(el('p','batch-note','正在读取剧集与制作人名单…'));document.body.append(dialog);dialog.addEventListener('cancel',event=>{event.preventDefault();close()});dialog.showModal();
+  let writing=false,releaseScroll=()=>{};const close=()=>{if(writing)return;dialog.close();releaseScroll();dialog.remove();current=null;previous?.focus?.({preventScroll:true})};const closeButton=button('关闭','batch-close',close);header.append(closeButton);dialog.append(header);
+  const body=el('div','batch-body');dialog.append(body);body.append(el('p','batch-note','正在读取剧集与制作人名单…'));document.body.append(dialog);dialog.addEventListener('cancel',event=>{event.preventDefault();close()});releaseScroll=lockModalScroll(dialog);dialog.addEventListener('close',releaseScroll,{once:true});try{dialog.showModal()}catch(error){releaseScroll();dialog.remove();current=null;throw error}
   let context;try{context=await readBatchContext(base)}catch(error){body.replaceChildren(el('p','batch-error','无法连接剧集表：'+(error.message||String(error))));return}if(!dialog.isConnected)return;
   body.replaceChildren();const form=el('div','batch-form'),controls=el('fieldset','batch-controls');form.append(controls);body.append(form);
   const setup=el('div','batch-setup'),modeWrap=el('label','batch-field'),mode=el('select');mode.setAttribute('aria-label','操作方式');mode.append(option('create','批量生成新剧集'),option('assign','批量分配已有剧集'));modeWrap.append(el('span','','操作方式'),mode);
