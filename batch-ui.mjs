@@ -1,4 +1,4 @@
-import {lockModalScroll} from './modal-scroll.mjs?v=20261106-wheel';
+import {lockModalScroll} from './modal-scroll.mjs?v=20261106-native-scroll';
 import {readBatchContext,makeBatchPlan,applyBatchPlan,MAX_EPISODES} from './batch.mjs?v=20261106-batch';
 const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
 const button=(text,cls,handler)=>{const node=el('button',cls,text);node.type='button';node.onclick=handler;return node};
@@ -6,7 +6,7 @@ function input(label,type,value){const wrap=el('label','batch-field'),caption=el
 function option(value,label){const node=el('option','',label);node.value=value;return node}
 let current=null;
 export async function openBatchGenerator({base,onChanged=()=>{}}){
-  if(current?.isConnected){current.focus();return}
+  if(current?.isConnected){current.focus({preventScroll:true});return}
   const previous=document.activeElement,dialog=el('dialog','batch-dialog');current=dialog;dialog.setAttribute('aria-label','批量生成与分配剧集');
   const header=el('div','batch-header'),heading=el('div'),title=el('h2','','批量生成与分配剧集'),subtitle=el('p','batch-note','自动编号，并按集数范围填写制作人。');heading.append(title,subtitle);header.append(heading);
   let writing=false,releaseScroll=()=>{};const close=()=>{if(writing)return;dialog.close();releaseScroll();dialog.remove();current=null;previous?.focus?.({preventScroll:true})};const closeButton=button('关闭','batch-close',close);header.append(closeButton);dialog.append(header);
@@ -33,5 +33,5 @@ export async function openBatchGenerator({base,onChanged=()=>{}}){
   function getInput(){return {mode:mode.value,prefix:prefix.node.value,total:total.node.value,ranges:rangeEntries.map(r=>({start:r.start.value,end:r.end.value,owner:r.owner.value}))}}
   function setBusy(value){writing=value;controls.disabled=value;preview.disabled=value;closeButton.disabled=value;execute.disabled=value||!plan||!plan.fills.length&&!plan.creates.length&&!plan.updates.length||completed}
   function renderPlan(){results.replaceChildren();const summary=el('div','batch-summary');summary.append(el('strong','',plan.settings.mode==='create'?'将生成 '+(plan.fills.length+plan.creates.length)+' 集（填入空位 '+plan.fills.length+'，新增 '+plan.creates.length+'）':'将更新 '+plan.updates.length+' 集的制作人'),el('span','','保留或跳过 '+(plan.unchanged+plan.missing)+' 集'));results.append(summary);const wrap=el('div','batch-preview-wrap'),table=el('table','batch-preview'),thead=el('thead'),tr=el('tr');for(const value of ['集号','剧集名称','制作人','本次操作'])tr.append(el('th','',value));thead.append(tr);table.append(thead);const tbody=el('tbody');for(const item of plan.rows.slice(0,200)){const row=el('tr');for(const value of [item.episode,item.title,item.owner,item.action])row.append(el('td','',String(value)));tbody.append(row)}table.append(tbody);wrap.append(table);results.append(wrap);if(plan.rows.length>200)results.append(el('p','batch-note','预览展示前200集，确认后将处理全部 '+plan.rows.length+' 集。'));execute.textContent=plan.settings.mode==='create'?'确认生成 '+(plan.fills.length+plan.creates.length)+' 集':'确认分配 '+plan.updates.length+' 集';}
-  for(const node of [prefix.node,total.node])node.addEventListener('input',invalidate);mode.addEventListener('change',()=>{help();invalidate();execute.textContent=mode.value==='create'?'确认生成':'确认分配'});addRange();total.node.focus();
+  for(const node of [prefix.node,total.node])node.addEventListener('input',invalidate);mode.addEventListener('change',()=>{help();invalidate();execute.textContent=mode.value==='create'?'确认生成':'确认分配'});addRange();total.node.focus({preventScroll:true});
 }

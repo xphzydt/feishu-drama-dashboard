@@ -1,6 +1,6 @@
 import {renderEpisodeTable} from './workbench.mjs?v=20261106-workbench';
 import {createCreditControl} from './credit-ui.mjs?v=20261106-workbench';
-import {openBatchGenerator} from './batch-ui.mjs?v=20261106-wheel';
+import {openBatchGenerator} from './batch-ui.mjs?v=20261106-native-scroll';
 import {bitable,dashboard,DashboardState,Rollup,SourceType} from './sdk.mjs';
 import {formatDuration,renderOverview,renderPersonal} from './render.mjs?v=20261106-workbench';
 import {connectProduction,readProduction} from './navigation.mjs?v=20261106-workbench';
