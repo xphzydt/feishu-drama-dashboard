@@ -2,8 +2,8 @@ import {cellText,readRecords,findSourceTable} from './navigation.mjs';
 export const MAX_EPISODES=5000;
 const integer=(value,label)=>{const n=Number(value);if(!Number.isSafeInteger(n)||n<1||n>MAX_EPISODES)throw Error(label+'须为1—'+MAX_EPISODES+'的整数');return n};
 export function splitTitle(value){const text=cellText(value).trim();const m=text.match(/^(.*?)第\s*0*(\d+)\s*集$/u);if(m)return {prefix:m[1].replace(/[\s·・:：—-]+$/gu,'').trim(),episode:Number(m[2])};if(/^\d+$/u.test(text))return {prefix:'',episode:Number(text)};return null}
-export function batchSchema(fields){const result={};for(const [key,name,type] of [['title','剧集',1],['episode','集号',2],['maker','制作人',3],['status','制作状态',3]]){const field=fields.find(f=>f.name===name);if(!field||field.type!==type)throw Error('剧集制作表的“'+name+'”字段类型不符合批量填写要求');result[key]=field}return result}
-export async function connectBatch(base){const source=await findSourceTable(base,['剧集','集号','制作人','制作状态']);return {table:source.table,fields:batchSchema(source.fields),allFields:source.fields}}
+export function batchSchema(fields){const result={};for(const [key,name,type] of [['title','剧集',1],['maker','制作人',3],['status','制作状态',3]]){const field=fields.find(f=>f.name===name);if(!field||field.type!==type)throw Error('剧集制作表的“'+name+'”字段类型不符合批量填写要求');result[key]=field}const episode=fields.find(f=>f.name==='集号'&&f.type===2);if(episode)result.episode=episode;return result}
+export async function connectBatch(base){const source=await findSourceTable(base,['剧集','制作人','制作状态']);return {table:source.table,fields:batchSchema(source.fields),allFields:source.fields}}
 export async function readBatchContext(base){const connection=await connectBatch(base);const records=await readRecords(connection.table);const prefixes=[...new Set(records.map(r=>splitTitle(r.fields[connection.fields.title.id])?.prefix).filter(Boolean))];let orderedRecords=records;if(connection.table.getViewMetaList){const views=await connection.table.getViewMetaList();const team=views.find(v=>v.name==='团队剧集总览'&&[1,'grid'].includes(v.type));if(team)orderedRecords=await readRecords(connection.table,team.id)}return {...connection,records,prefixes,orderedRecords}}
 export function validateInput(input,fields){
   const total=integer(input.total,'总集数'),prefix=String(input.prefix||'').trim();if(prefix.length>100)throw Error('剧名前缀请控制在100字以内');if(!['create','assign'].includes(input.mode))throw Error('请选择操作方式');
@@ -20,17 +20,17 @@ function emptyValue(value){
 }
 export function reusableRecord(record,fields,allFields=Object.values(fields)){
   const metadata=new Map(allFields.map(f=>[f.id,f]));
-  return Object.entries(record.fields).every(([id,value])=>{const field=metadata.get(id);if(id===fields.episode.id||[19,20,1001,1002,1003,1004,1005,3001].includes(field?.type))return true;if(field?.type===7&&value===false)return true;return emptyValue(value)});
+  return Object.entries(record.fields).every(([id,value])=>{const field=metadata.get(id);if(id===fields.episode?.id||[19,20,1001,1002,1003,1004,1005,3001].includes(field?.type))return true;if(field?.type===7&&value===false)return true;return emptyValue(value)});
 }
 export function makeBatchPlan(input,context){
   const {fields,records}=context,settings=validateInput(input,fields),existing=new Map();
-  for(const record of records){const parsed=splitTitle(record.fields[fields.title.id]);if(!parsed||parsed.prefix!==settings.prefix||parsed.episode<1||parsed.episode>settings.total)continue;const n=Number(cellText(record.fields[fields.episode.id]));if(n&&n!==parsed.episode)throw Error('剧集名称与集号不一致：'+cellText(record.fields[fields.title.id])+'，请先核对');if(existing.has(parsed.episode))throw Error('已有重复剧集：第'+parsed.episode+'集，请先核对后再批量操作');existing.set(parsed.episode,record)}
+  for(const record of records){const parsed=splitTitle(record.fields[fields.title.id]);if(!parsed||parsed.prefix!==settings.prefix||parsed.episode<1||parsed.episode>settings.total)continue;const n=fields.episode?Number(cellText(record.fields[fields.episode.id])):0;if(n&&n!==parsed.episode)throw Error('剧集名称与集号不一致：'+cellText(record.fields[fields.title.id])+'，请先核对');if(existing.has(parsed.episode))throw Error('已有重复剧集：第'+parsed.episode+'集，请先核对后再批量操作');existing.set(parsed.episode,record)}
   const creates=[],fills=[],updates=[],rows=[];let unchanged=0,missing=0;const emptyRecords=(context.orderedRecords||records).filter(r=>reusableRecord(r,fields,context.allFields));let emptyIndex=0;
   const pending=fields.status.property.options.find(o=>o.name==='待制作');if(settings.mode==='create'&&!pending)throw Error('制作状态中缺少“待制作”选项');
   for(let episode=1;episode<=settings.total;episode++){
     const title=(settings.prefix?settings.prefix+' · ':'')+'第'+episode+'集',owner=settings.ranges.find(r=>episode>=r.start&&episode<=r.end)?.owner||null,record=existing.get(episode);let action;
     if(settings.mode==='create'){
-      if(record){unchanged++;action='已有，跳过'}else{const values={[fields.title.id]:[{type:'text',text:title}],[fields.episode.id]:episode,[fields.status.id]:{id:pending.id,text:pending.name}};if(owner)values[fields.maker.id]={id:owner.id,text:owner.name};const empty=emptyRecords[emptyIndex++];if(empty){fills.push({recordId:empty.recordId,fields:values});action='填入前面空位'}else{creates.push({fields:values});action='新增'}}
+      if(record){unchanged++;action='已有，跳过'}else{const values={[fields.title.id]:[{type:'text',text:title}],[fields.status.id]:{id:pending.id,text:pending.name}};if(fields.episode)values[fields.episode.id]=episode;if(owner)values[fields.maker.id]={id:owner.id,text:owner.name};const empty=emptyRecords[emptyIndex++];if(empty){fills.push({recordId:empty.recordId,fields:values});action='填入前面空位'}else{creates.push({fields:values});action='新增'}}
     }else if(!record){missing++;action='不存在，跳过'}else if(!owner){unchanged++;action='未指定，不变'}else{
       const current=record.fields[fields.maker.id],currentId=current?.id||fields.maker.property.options.find(o=>o.name===cellText(current))?.id;
       if(currentId===owner.id){unchanged++;action='负责人相同，不变'}else{updates.push({recordId:record.recordId,fields:{[fields.maker.id]:{id:owner.id,text:owner.name}}});action='分配给 '+owner.name}

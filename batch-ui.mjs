@@ -1,4 +1,4 @@
-import {readBatchContext,makeBatchPlan,applyBatchPlan,MAX_EPISODES} from './batch.mjs';
+import {readBatchContext,makeBatchPlan,applyBatchPlan,MAX_EPISODES} from './batch.mjs?v=20261106-batch';
 const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
 const button=(text,cls,handler)=>{const node=el('button',cls,text);node.type='button';node.onclick=handler;return node};
 function input(label,type,value){const wrap=el('label','batch-field'),caption=el('span','',label),node=el('input');node.type=type;node.value=value;node.setAttribute('aria-label',label);wrap.append(caption,node);return {wrap,node}}
