@@ -1,7 +1,7 @@
-import {createCreditControl} from './credit-ui.mjs';
+import {createCreditControl} from './credit-ui.mjs?v=20261106-personal';
 import {openBatchGenerator} from './batch-ui.mjs';
 import {bitable,dashboard,DashboardState,Rollup,SourceType} from './sdk.mjs';
-import {formatDuration,renderOverview,renderPersonal} from './render.mjs';
+import {formatDuration,renderOverview,renderPersonal} from './render.mjs?v=20261106-personal';
 import {connectProduction,readProduction} from './navigation.mjs';
 const app=document.querySelector('#app');
 const params=new URLSearchParams(location.search);

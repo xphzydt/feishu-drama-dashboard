@@ -1,4 +1,4 @@
-import {parseCanvasUrl,creditSchema,savedCanvasLinks,applyCreditSnapshot} from './credit-sync.mjs';
+import {parseCanvasUrl,creditSchema,savedCanvasLinks,applyCreditSnapshot} from './credit-sync.mjs?v=20261106-personal';
 import {readRecords} from './navigation.mjs';
 
 const serviceUrl='http://127.0.0.1:19876';
