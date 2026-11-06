@@ -4,3 +4,5 @@
 .personal-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.personal-metrics strong{font-size:clamp(20px,2.7vw,32px)}@media(max-width:700px){.personal-metrics{grid-template-columns:1fr 1fr}}
 
 .canvas-control{margin-bottom:22px}.canvas-control .section-note{margin:0}.canvas-controls{display:flex;align-items:flex-end;gap:16px}.canvas-label{display:flex;flex:1;min-width:0;flex-direction:column;gap:9px;font-size:13px;color:#fff}.canvas-url{font:inherit;width:100%;border:1px solid #4a4a4a;border-radius:8px;background:#090909;color:#fff;min-height:43px;padding:10px 12px}.canvas-url::placeholder{color:#a8a8a8}.canvas-url:focus{outline:2px solid #fff;outline-offset:2px}.canvas-controls button{min-height:43px;white-space:nowrap}.canvas-status{font-size:13px;line-height:1.7;margin:14px 0 0;color:#ddd;white-space:pre-wrap}.canvas-status.batch-error{color:#ffb6af}@media(max-width:650px){.canvas-controls{align-items:stretch;flex-direction:column}}
+
+.canvas-settings{margin-top:12px;color:#ddd}.canvas-settings summary{cursor:pointer;font-size:12px}.canvas-settings .canvas-controls{margin-top:12px}
