@@ -26,7 +26,7 @@ export async function findSourceTable(base,required){
 }
 export async function connectProduction(base){
  const [episodes,credits]=await Promise.all([findSourceTable(base,['剧集','制作人','完成集数','成片总秒数','完成日期']),findSourceTable(base,['制作人','消耗积分','任务创建时间'])]);
- return {table:episodes.table,ledger:credits.table,fields:{...schema(episodes.fields,{maker:'制作人',done:'完成集数',seconds:'成片总秒数',date:'完成日期'}),episode:episodes.fields.find(f=>f.name==='集号')||episodes.fields.find(f=>f.name==='剧集')},creditFields:schema(credits.fields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
+ return {table:episodes.table,ledger:credits.table,episodeFields:episodes.fields,fields:{...schema(episodes.fields,{maker:'制作人',done:'完成集数',seconds:'成片总秒数',date:'完成日期'}),episode:episodes.fields.find(f=>f.name==='集号')||episodes.fields.find(f=>f.name==='剧集')},creditFields:schema(credits.fields,{maker:'制作人',credits:'消耗积分',date:'任务创建时间'})};
 }
 export async function readRecords(table,viewId){
   const records=[];let pageToken;
@@ -88,5 +88,5 @@ export async function readProduction(connection){
     return {id:meta.id,name:meta.name,owner:owner.name,range:episodeRanges(records,fields),episodeOrder:episodeOrder(records,fields),...totals(records,fields),credits:credits.get(owner.name)||0,destination:{tableId:table.id,viewId:meta.id}};
   }));
   rows.sort(compareEpisodeOrder);
-  return {rows,team:totals(all,fields),credits:aggregateCredits(creditRecords,creditFields,rows),video:aggregateVideo(all,fields)};
+  return {rows,episodes:all,team:totals(all,fields),credits:aggregateCredits(creditRecords,creditFields,rows),video:aggregateVideo(all,fields)};
 }
