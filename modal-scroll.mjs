@@ -1,7 +1,8 @@
 export function consumeModalWheel(event,dialog){
   if(event.ctrlKey)return;
   event.preventDefault();event.stopImmediatePropagation();
-  if(!dialog.contains(event.target))return;
+  const doc=dialog.ownerDocument,target=event.target,forwarded=doc&&(target===doc.defaultView||target===doc||target===doc.documentElement||target===doc.body);
+  if(!forwarded&&!dialog.contains(target))return;
   const body=dialog.querySelector('.batch-body'),path=event.composedPath?.()||[];
   const candidates=[...new Set([...path.filter(el=>el?.classList&&dialog.contains(el)&&(el.classList.contains('batch-preview-wrap')||el.classList.contains('batch-body'))),body].filter(Boolean))];
   const horizontal=Math.abs(event.deltaX)>Math.abs(event.deltaY),axis=horizontal?'scrollLeft':'scrollTop',size=horizontal?'clientWidth':'clientHeight',extent=horizontal?'scrollWidth':'scrollHeight';
