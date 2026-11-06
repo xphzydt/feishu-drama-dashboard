@@ -13,7 +13,7 @@ let configuring=surface==='dashboard'&&[DashboardState.Create,DashboardState.Con
 let connection=null,source=null,people=null,error='',busy=false,unsubscribers=[];
 let destinations=new Map(),team=null,credits=null;
 const detailState={month:"all",owner:"all"};
-let dataSignature="";let syncingCredits=false;const creditStates=new Map();
+let dataSignature="";let componentVisible=true;let syncingCredits=false;const creditStates=new Map();
 async function openPerson(destination){try{const opened=await timed(bitable.ui.switchToView(destination.tableId,destination.viewId),'打开个人剧集');if(!opened)throw Error('无法打开个人视图，请检查访问权限')}catch(error){bitable.ui.showToast({toastType:'error',message:error.message}).catch(()=>{});throw error}}
 async function timed(promise,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+'超时，请在飞书内刷新插件')),12000)})])}finally{clearTimeout(timer)}}
 function makeCondition(connection){const fields=connection.fields;return {tableId:connection.table.id,dataRange:{type:SourceType.ALL},groups:[{fieldId:fields.maker.id}],series:[fields.done.id,fields.seconds.id].map(fieldId=>({fieldId,rollup:Rollup.SUM}))}}
@@ -32,11 +32,11 @@ function show(){
   }
 }
 async function refresh(){
-  if(busy||!connection||syncingCredits)return;busy=true;let changed=false;
+  if(busy||!connection||syncingCredits||!componentVisible)return;busy=true;let changed=false;
   try{const result=await timed(readProduction(connection),'读取个人视图');const signature=JSON.stringify(result);changed=signature!==dataSignature||!!error||!people;people=result.rows;team=result.team;credits=result.credits;video=result.video;destinations=new Map(people.map(person=>[person.id,person.destination]));dataSignature=signature;error=''}
   catch(e){error=e.message||String(e);people=null;changed=true}
   finally{busy=false;if(changed)show();else{const stamp=app.querySelector?.('.stamp');if(stamp)stamp.textContent='原表实时统计 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false})}}
 }
 async function initialize(){try{unsubscribers.forEach(stop=>stop());unsubscribers=[];dataSignature="";if(surface==='dashboard'&&!configuring){const config=await timed(dashboard.getConfig(),'读取组件配置');mode=config?.customConfig?.mode||mode;owner=config?.customConfig?.owner||owner}connection=await timed(connectProduction(bitable.base),'连接剧集与积分源表');source=makeCondition(connection);for(const table of [connection.table,connection.ledger])for(const event of ['onRecordAdd','onRecordModify','onRecordDelete'])unsubscribers.push(table[event](()=>refresh()));error='';await refresh()}catch(e){error=e.message||String(e);people=null;show()}}
 function applyTheme(){document.documentElement.style.setProperty('--bg','#090909');document.documentElement.style.setProperty('--fg','#ffffff')}
-if(embedded){if(surface==='dashboard'){dashboard.onDataChange(()=>refresh());dashboard.onConfigChange(()=>initialize());dashboard.onThemeChange(event=>applyTheme(event.data));dashboard.getTheme().then(applyTheme).catch(()=>{})}else bitable.base.onPermissionChange(()=>initialize());show();initialize();setInterval(()=>{if(document.visibilityState==='visible')refresh()},10000)}else{error='请从飞书多维表格的插件入口打开，单独打开网址不能读取表格';show()}
+if(embedded){if(surface==='dashboard'){dashboard.onDataChange(()=>refresh());dashboard.onConfigChange(()=>initialize());dashboard.onThemeChange(event=>applyTheme(event.data));dashboard.getTheme().then(applyTheme).catch(()=>{})}else bitable.base.onPermissionChange(()=>initialize());show();if(typeof IntersectionObserver!=='undefined'){const visibility=new IntersectionObserver(entries=>{const wasVisible=componentVisible;componentVisible=entries.some(entry=>entry.isIntersecting);if(componentVisible&&!wasVisible)refresh()});visibility.observe(document.documentElement)}initialize();setInterval(()=>{if(componentVisible&&document.visibilityState==='visible')refresh()},10000)}else{error='请从飞书多维表格的插件入口打开，单独打开网址不能读取表格';show()}
